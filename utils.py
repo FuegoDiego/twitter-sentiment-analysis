@@ -1,8 +1,117 @@
+import pandas as pd
+import numpy as np
 import functools
 import gc
 import itertools
 import sys
 from timeit import default_timer as _timer
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+
+
+def get_pipeline_params(param_dict):
+    new_params = {}
+    for key in param_dict.keys():
+        for param_key in param_dict[key].keys():
+            new_key = key + '__' + param_key
+            new_value = tuple(param_dict[key][param_key])
+            new_params.update({new_key: new_value})
+
+    return new_params
+
+
+def get_tuple_list(d):
+    tuple_list = []
+    for key in d.keys():
+        tuple_list.append((key, d[key]))
+
+    return tuple_list
+
+
+def get_tuple_dict(d):
+    tuple_dict = {}
+    for key in d.keys():
+        tuple_dict.update({key: d[key]})
+
+    return tuple_dict
+
+
+class EstimatorSelectionHelper:
+
+    def __init__(self, models, model_params, transformers, transformer_params):
+        if not set(models.keys()).issubset(set(model_params.keys())):
+            missing_params = list(set(models.keys()) - set(model_params.keys()))
+            raise ValueError("Some estimators are missing parameters: %s" % missing_params)
+
+        if not set(transformers.keys()).issubset(set(transformer_params.keys())):
+            missing_params = list(set(transformers.keys()) - set(transformer_params.keys()))
+            raise ValueError("Some transformers are missing parameters: %s" % missing_params)
+
+        if not all(isinstance(x, dict) for x in model_params.values()):
+            wrong_model_params = [k for k, v in model_params.items() if not isinstance(v, dict)]
+            raise TypeError("Values in the dictionary must be of type 'dict'. "
+                            "These models have more than one parameter set: %s. "
+                            "Please separate them into different models, e.g. 'model_param_set_1', 'model_param_set_2',"
+                            " etc." % wrong_model_params)
+
+        self.models = models
+        self.model_params = model_params
+        self.model_keys = models.keys()
+        self.model_tuple_dict = get_tuple_dict(models)
+        self.transformers = transformers
+        self.transformer_params = transformer_params
+        self.transformer_keys = transformers.keys()
+        self.transformer_tuple_list = get_tuple_list(transformers)
+        self.grid_searches = {}
+
+    def fit(self, X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=False):
+        for model_key in self.model_keys:
+            print("Running GridSearchCV for %s." % model_key)
+            model = self.models[model_key]
+
+            model_pipe_params = get_pipeline_params({model_key: self.model_params[model_key]})
+            pipe_params = get_pipeline_params(self.transformer_params)
+            pipe_params.update(model_pipe_params)
+
+            pipe_list = self.transformer_tuple_list + [(model_key, model)]
+            pipeline = Pipeline(pipe_list)
+            gs = GridSearchCV(pipeline, pipe_params, cv=cv, n_jobs=n_jobs,
+                              verbose=verbose, scoring=scoring, refit=refit,
+                              return_train_score=return_train_score)
+            gs.fit(X,y)
+            self.grid_searches[model_key] = gs
+
+    def score_summary(self, sort_by='mean_score'):
+        def row(key, scores, params):
+            d = {
+                 'estimator': key,
+                 'min_score': min(scores),
+                 'max_score': max(scores),
+                 'mean_score': np.mean(scores),
+                 'std_score': np.std(scores),
+            }
+            return pd.Series({**params,**d})
+
+        rows = []
+        for k in self.grid_searches:
+            print(k)
+            params = self.grid_searches[k].cv_results_['params']
+            scores = []
+            for i in range(self.grid_searches[k].cv):
+                key = "split{}_test_score".format(i)
+                r = self.grid_searches[k].cv_results_[key]
+                scores.append(r.reshape(len(params),1))
+
+            all_scores = np.hstack(scores)
+            for p, s in zip(params,all_scores):
+                rows.append((row(k, s, p)))
+
+        df = pd.concat(rows, axis=1).T.sort_values([sort_by], ascending=False)
+
+        columns = ['estimator', 'min_score', 'mean_score', 'max_score', 'std_score']
+        columns = columns + [c for c in df.columns if c not in columns]
+
+        return df[columns]
 
 
 def timeit(_func=None, *, repeat=3, number=1000, file=sys.stdout):

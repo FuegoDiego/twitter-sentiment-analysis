@@ -1,4 +1,10 @@
 import pandas as pd
+import spacy
+from process_tokenize import preprocess_tokens
+from utils import EstimatorSelectionHelper
+from sklearn.svm import SVC
+from sklearn.linear_model import SGDClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
 # load the data
 training_df = pd.read_csv('./data/tweets_training_data.csv',
@@ -8,3 +14,36 @@ training_df = pd.read_csv('./data/tweets_training_data.csv',
                           encoding='latin-1')
 
 training_df = training_df.groupby('target').head(1000).reset_index(drop=True)
+training_df = training_df.sample(frac=1).reset_index(drop=True)
+
+models = {
+    'SVC': SVC(),
+    'SGDClassifier': SGDClassifier()
+}
+
+model_params = {
+    'SVC': {'kernel': ['rbf'], 'C': [1, 10], 'gamma': [0.001, 0.0001]},
+    'SGDClassifier': {'max_iter': [20], 'alpha': [0.00001, 0.000001], 'penalty': ['l2', 'elasticnet']}
+}
+
+transformers = {
+    'CountVectorizer': CountVectorizer(),
+    'TfidfTransformer': TfidfTransformer()
+}
+
+transformer_params = {
+    'CountVectorizer': {'max_df': [0.5, 0.75, 1.0], 'max_features': [None, 5, 10, 20]},
+    'TfidfTransformer': {'use_idf': [True, False]}
+}
+
+docs = training_df['text']
+nlp = spacy.load('en')
+
+filtered_tokens = preprocess_tokens(docs, nlp)
+filtered_tokens_str = [' '.join(tokens) for tokens in filtered_tokens]
+
+helper = EstimatorSelectionHelper(models, model_params, transformers, transformer_params)
+
+helper.fit(filtered_tokens_str, training_df['target'], cv=100)
+
+print()
