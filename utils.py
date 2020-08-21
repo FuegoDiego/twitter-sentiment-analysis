@@ -64,7 +64,7 @@ class EstimatorSelectionHelper:
         self.transformer_tuple_list = get_tuple_list(transformers)
         self.grid_searches = {}
 
-    def fit(self, X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=False):
+    def fit(self, X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=True):
         for model_key in self.model_keys:
             print("Running GridSearchCV for %s." % model_key)
             model = self.models[model_key]
@@ -82,13 +82,17 @@ class EstimatorSelectionHelper:
             self.grid_searches[model_key] = gs
 
     def score_summary(self, sort_by='mean_score'):
-        def row(key, scores, params):
+        def row(key, scorer, scores, params):
+            min_score = 'min_score_' + scorer
+            max_score = 'max_score_' + scorer
+            mean_score = 'mean_score_' + scorer
+            std_score = 'std_score_' + scorer
             d = {
                  'estimator': key,
-                 'min_score': min(scores),
-                 'max_score': max(scores),
-                 'mean_score': np.mean(scores),
-                 'std_score': np.std(scores),
+                 min_score: min(scores),
+                 max_score: max(scores),
+                 mean_score: np.mean(scores),
+                 std_score: np.std(scores),
             }
             return pd.Series({**params,**d})
 
@@ -97,14 +101,16 @@ class EstimatorSelectionHelper:
             print(k)
             params = self.grid_searches[k].cv_results_['params']
             scores = []
-            for i in range(self.grid_searches[k].cv):
-                key = "split{}_test_score".format(i)
-                r = self.grid_searches[k].cv_results_[key]
-                scores.append(r.reshape(len(params),1))
+            for scorer in self.grid_searches[k].scoring:
+                for i in range(self.grid_searches[k].cv):
+                    key = "split{}_test_{}".format(i, scorer)
+                    r = self.grid_searches[k].cv_results_[key]
+                    scores.append(r.reshape(len(params),1))
 
             all_scores = np.hstack(scores)
-            for p, s in zip(params,all_scores):
-                rows.append((row(k, s, p)))
+            scorers = self.grid_searches[k].scoring.keys()
+            for p, sc, s in zip(params, scorers, all_scores):
+                rows.append((row(k, sc, s, p)))
 
         df = pd.concat(rows, axis=1).T.sort_values([sort_by], ascending=False)
 
