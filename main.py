@@ -54,6 +54,6 @@ helper = EstimatorSelectionHelper(models, model_params, transformers, transforme
 
 helper.fit(X, y, cv=3, scoring=scoring)
 
-helper.score_summary()
+score_summary = helper.score_summary()
 
 print()

@@ -81,40 +81,59 @@ class EstimatorSelectionHelper:
             gs.fit(X,y)
             self.grid_searches[model_key] = gs
 
-    def score_summary(self, sort_by='mean_score'):
-        def row(key, scorer, scores, params):
-            min_score = 'min_score_' + scorer
-            max_score = 'max_score_' + scorer
-            mean_score = 'mean_score_' + scorer
-            std_score = 'std_score_' + scorer
-            d = {
-                 'estimator': key,
-                 min_score: min(scores),
-                 max_score: max(scores),
-                 mean_score: np.mean(scores),
-                 std_score: np.std(scores),
-            }
-            return pd.Series({**params,**d})
+    def score_summary(self):
+        def row(key, scores, params):
+            params.update({'estimator': key})
+            row_series = pd.Series({**params})
+            for scorer in scores:
+                min_score = scorer + '_min_score'
+                max_score = scorer + '_max_score'
+                mean_score = scorer + '_mean_score'
+                std_score = scorer + '_std_score'
+                d = {
+                     min_score: scores[scorer]['min_score'],
+                     max_score: scores[scorer]['max_score'],
+                     mean_score: scores[scorer]['mean_score'],
+                     std_score: scores[scorer]['std_score'],
+                }
+                row_series = pd.concat([row_series, pd.Series({**d})])
+            return row_series
 
         rows = []
         for k in self.grid_searches:
             print(k)
             params = self.grid_searches[k].cv_results_['params']
-            scores = []
+            scores = {}
             for scorer in self.grid_searches[k].scoring:
+                cv_results = self.grid_searches[k].cv_results_
+                mean_score = cv_results['mean_test_' + scorer]
+                std_score = cv_results['std_test_' + scorer]
+                min_score = np.ones(len(params))
+                max_score = np.zeros(len(params))
+
                 for i in range(self.grid_searches[k].cv):
                     key = "split{}_test_{}".format(i, scorer)
-                    r = self.grid_searches[k].cv_results_[key]
-                    scores.append(r.reshape(len(params),1))
+                    r = cv_results[key]
+                    min_score = np.minimum(min_score, r)
+                    max_score = np.maximum(max_score, r)
 
-            all_scores = np.hstack(scores)
-            scorers = self.grid_searches[k].scoring.keys()
-            for p, sc, s in zip(params, scorers, all_scores):
-                rows.append((row(k, sc, s, p)))
+                scorer_dict = {
+                    scorer: {
+                        'min_score': min_score,
+                        'max_score': max_score,
+                        'mean_score': mean_score,
+                        'std_score': std_score
+                    }
+                }
+                scores.update(scorer_dict)
 
-        df = pd.concat(rows, axis=1).T.sort_values([sort_by], ascending=False)
+            for i, p in enumerate(params):
+                sc_dict = {k: {sub_k: sub_v[i] for sub_k, sub_v in v.items()} for k, v in scores.items()}
+                rows.append(row(k, sc_dict, p))
 
-        columns = ['estimator', 'min_score', 'mean_score', 'max_score', 'std_score']
+        df = pd.concat(rows, axis=1).T
+
+        columns = ['estimator'] + [s for s in df.columns if '__' in s] + [s for s in df.columns if '_score' in s]
         columns = columns + [c for c in df.columns if c not in columns]
 
         return df[columns]
