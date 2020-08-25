@@ -1,6 +1,6 @@
 import re
-import spacy
-from utils import timeit
+
+from utils import print_progressbar
 
 
 def tokenize_tweet(tweet_text, language_model):
@@ -38,7 +38,6 @@ def remove_noise(token):
     return is_noise
 
 
-#@timeit(repeat=3, number=20)
 def preprocess_tokens(docs, nlp):
     """Filter out noisy tokens and lemmatize the remaining ones.
 
@@ -56,9 +55,12 @@ def preprocess_tokens(docs, nlp):
         print("Input can't be casted to type 'list'")
         raise
 
+    n = len(docs)  # used for progress bar only
     filtered_tokens = []
-    for doc in nlp.pipe(docs):
+    for i, doc in enumerate(nlp.pipe(docs)):
         tokens = [token.lemma_.lower() for token in doc if (remove_noise(token) and token.lemma_ != '-PRON-')]
         filtered_tokens.append(tokens)
+
+        print_progressbar(i, n)
 
     return filtered_tokens

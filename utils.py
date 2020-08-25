@@ -4,12 +4,22 @@ import functools
 import gc
 import itertools
 import sys
+import pickle
+
 from timeit import default_timer as _timer
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 
 
 def get_pipeline_params(param_dict):
+    """
+    Flattens a nested dictionary. The new keys are a concatenation of the original parent keys and their corresponding
+    child keys.
+    :param
+        param_dict (dict): a nested dictionary
+    :return
+        new_params (dict): the result of flattening param_dict
+    """
     new_params = {}
     for key in param_dict.keys():
         for param_key in param_dict[key].keys():
@@ -21,6 +31,14 @@ def get_pipeline_params(param_dict):
 
 
 def get_tuple_list(d):
+    """
+    Creates a list of tuples where each tuple is of the form (key, value) where key is a key in the dictionary d and
+    value is the corresponding value of the key in d.
+    :param d: dict
+        A dictionary
+    :return tuple_list: list
+        A list of tuples of the form (key, d[key]) where key is a key in d
+    """
     tuple_list = []
     for key in d.keys():
         tuple_list.append((key, d[key]))
@@ -28,17 +46,61 @@ def get_tuple_list(d):
     return tuple_list
 
 
-def get_tuple_dict(d):
-    tuple_dict = {}
-    for key in d.keys():
-        tuple_dict.update({key: d[key]})
+def print_progressbar(i, n):
+    """Prints a progressbar for the ith step in a series of n steps."""
+    sys.stdout.write('\r')
+    sys.stdout.write("[{:{}}] {:.1f}%".format("=" * i, n - 1, (100 / (n - 1) * i)))
+    sys.stdout.flush()
 
-    return tuple_dict
 
+class MultiClassifierGridSearchCV:
+    """
+    A class to do grid search using a pipeline that allows multiple transformer steps, classifiers, and scoring
+    functions.
 
-class EstimatorSelectionHelper:
+    ...
+
+    Attributes
+    ----------
+    models: dict
+        A dictionary of models where the key is the model name and the value is the model object.
+    model_params: dict
+        A dictionary of model parameters.
+    model_keys: dict_keys
+        The keys of the models dictionary.
+    transformers: dict
+        A dictionary of transformers where the key is the transformer name and the value is the transformer object.
+    transformer_params: dict
+        A dictionary of transformer parameters.
+    transformer_keys: dict_keys
+        The keys of the transformers dictionary.
+    transformer_tuple_list: list of tuple
+        A list containing the tuples (transformer_key, transformers[transformer_key]).
+    grid_searches: dict
+        A dictionary where the keys are the model keys and the values are the sklearn.model_selection.GridSearchCV
+        objects that correspond to performing a grid search using the model given by the key.
+
+    Methods
+    -------
+    fit(X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=False):
+        Performs grid search on a given model.
+    score_summary():
+        Returns a pandas.DataFrame with the summary of the grid search of each model.
+    """
 
     def __init__(self, models, model_params, transformers, transformer_params):
+        """
+        Constructs all the necessary attributes for the multi-classifier grid search object.
+        :param models: dict
+            Dictionary of model objects.
+        :param model_params:
+            Dictionary of parameter values for each model.
+        :param transformers:
+            Dictionary of transformer objects.
+        :param transformer_params:
+            Dictionary of parameter values for each transformer.
+        """
+
         if not set(models.keys()).issubset(set(model_params.keys())):
             missing_params = list(set(models.keys()) - set(model_params.keys()))
             raise ValueError("Some estimators are missing parameters: %s" % missing_params)
@@ -57,14 +119,27 @@ class EstimatorSelectionHelper:
         self.models = models
         self.model_params = model_params
         self.model_keys = models.keys()
-        self.model_tuple_dict = get_tuple_dict(models)
         self.transformers = transformers
         self.transformer_params = transformer_params
         self.transformer_keys = transformers.keys()
         self.transformer_tuple_list = get_tuple_list(transformers)
         self.grid_searches = {}
 
-    def fit(self, X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=True):
+    def fit(self, X, y, cv=5, n_jobs=-1, verbose=1, scoring=None, refit=False, return_train_score=False):
+        """
+        Fits the training data to a grid search object for every model.
+
+        :param X:
+        :param y:
+        :param cv:
+        :param n_jobs:
+        :param verbose:
+        :param scoring:
+        :param refit:
+        :param return_train_score:
+        :return None
+        """
+
         for model_key in self.model_keys:
             print("Running GridSearchCV for %s." % model_key)
             model = self.models[model_key]
@@ -137,6 +212,18 @@ class EstimatorSelectionHelper:
         columns = columns + [c for c in df.columns if c not in columns]
 
         return df[columns]
+
+
+def load_object(filename):
+    with open(filename, 'rb') as input:
+        obj = pickle.load(input)
+
+    return obj
+
+
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
 
 def timeit(_func=None, *, repeat=3, number=1000, file=sys.stdout):
