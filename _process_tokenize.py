@@ -3,20 +3,6 @@ import re
 from utils import print_progressbar
 
 
-def tokenize_tweet(tweet_text, language_model):
-    doc = language_model(tweet_text)
-
-    token_list = []
-    for token in doc:
-        token_list.append(token.text)
-
-    return token_list
-
-
-def normalize_text(token_list):
-    return
-
-
 def remove_noise(token):
     """Removes tokens that do not add meaning or information to the data, such as punctuation, stop words, space
     characters, and hyperlinks.
@@ -28,8 +14,8 @@ def remove_noise(token):
     """
 
     # have to cast token to str because re.match only takes in strings or byte-like objects
-    matched_hyper = re.match('^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.' \
-                             '[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$', str(token))
+    matched_hyper = re.match('^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.][a-z0-9]+)*.'
+                             '[a-z]{2,5}(:[0-9]{1,5})?(/.*)?$', str(token))
     matched_tag = re.match('(@[A-Za-z0-9_]+)', str(token))
     is_matched = bool(matched_hyper) or bool(matched_tag)
 
