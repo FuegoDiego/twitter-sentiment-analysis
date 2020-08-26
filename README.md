@@ -134,4 +134,4 @@ The best model achieved a mean accuracy of 65.175%. There clearly is room for im
  * CUDA support: No
 
 ## Contact
-Please feel free to contact me if you found this interesting and think I would be a good fit at your company :)
+Please feel free to contact me at diego.caballero.loza@outlook.com if you found this interesting and think I would be a good fit at your company :)
