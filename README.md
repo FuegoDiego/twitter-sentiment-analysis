@@ -111,11 +111,11 @@ I only used accuracy as a scoring function given that my data was balanced. For 
 
 Model | CountVectorizer__max_df | CountVectorizer__max_features | CountVectorizer__min_df | CountVectorizer__ngram_range | LogisticRegression__C | LogisticRegression__l1_ratio | LogisticRegression__max_iter | LogisticRegression__penalty | LogisticRegression__solver | acc_mean_score
 ----- | ----------------------- | ----------------------------- | ----------------------- | ---------------------------- | --------------------- | ---------------------------- | ---------------------------- | --------------------------- | -------------------------- | --------------
-LogisticRegression | 0.4 | 10000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | 7.0 | elasticnet | saga | 0.6517499897211945
-LogisticRegression | 0.95 | 3000 | 0.01 | (1, 3) | 1.0 | 1.0 | 5000.0 | 7.0 | elasticnet | saga | 0.6517499885211704
-LogisticRegression | 0.95 | 40000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | 7.0 | elasticnet | saga | 0.6517399899211904
-LogisticRegression | 0.8 | 10000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | 7.0 | elasticnet | saga | 0.6517399899211904
-LogisticRegression | 0.4 | 40000 | 0.01 | (1, 3) | 0.5 | 0.5 | 1000.0 | 7.0 | elasticnet | saga | 0.6517399899211904
+LogisticRegression | 0.4 | 10000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | elasticnet | saga | 0.6517499897211945
+LogisticRegression | 0.95 | 3000 | 0.01 | (1, 3) | 1.0 | 1.0 | 5000.0 | elasticnet | saga | 0.6517499885211704
+LogisticRegression | 0.95 | 40000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | elasticnet | saga | 0.6517399899211904
+LogisticRegression | 0.8 | 10000 | 0.01 | (1, 3) | 0.5 | 0.5 | 100.0 | elasticnet | saga | 0.6517399899211904
+LogisticRegression | 0.4 | 40000 | 0.01 | (1, 3) | 0.5 | 0.5 | 1000.0 | elasticnet | saga | 0.6517399899211904
 
 The best model achieved a mean accuracy of 65.175%. There clearly is room for improvement such as doing a more extensive grid search, increasing the number of folds in the cross-validation, and using more training data. I am currently working on training a Logistic Regression model with more exhaustive parameter combinations and 7-fold cross-validation (7-fold sets aside about 15% of the data for testing). I expect the results to improve and I will update this section accordingly once that's done.
 
